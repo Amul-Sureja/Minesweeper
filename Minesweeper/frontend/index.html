@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Minesweeper</title>
+
+  <!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  MINESWEEPER  —  Full Stack (C++ Backend + HTML/CSS Frontend)║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  index.html        HTML structure ONLY — no logic            ║
+  ║  styles.css        All UI design + animations — no logic     ║
+  ║  engine-adapter.js WASM bridge + JS mirror of C++ rules      ║
+  ║  game.js           Animation, rendering, events              ║
+  ║  backend/GameEngine.h   ALL game rules in pure C++           ║
+  ║  backend/wasm_bridge.cpp  Emscripten C API                   ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+  HUD displays:
+    FOUND  — mines correctly flagged (starts 0, +1 per real mine flagged)
+    FLAGS  — total flags placed (ALL flags, mine or safe cell)
+    MINES  — total mines in current difficulty
+    TIME   — seconds since first click
+  -->
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="game-shell">
+
+  <!-- ── Title bar ─────────────────────────────────────────── -->
+  <div id="title-bar">
+    <span id="game-title">MINESWEEPER</span>
+    <span id="engine-tag">⚙ Loading…</span>
+  </div>
+
+  <!-- ── Difficulty selector ───────────────────────────────── -->
+  <div id="diff-row">
+    <button class="diff-btn active" data-d="0">Easy 10×10</button>
+    <button class="diff-btn"        data-d="1">Med 18×18</button>
+    <button class="diff-btn"        data-d="2">Hard 24×24</button>
+  </div>
+
+  <!-- ── HUD: 4 counters + face button ─────────────────────── -->
+  <div id="hud">
+
+    <!-- Mines found (correctly flagged mines, starts 0) -->
+    <div class="hud-box" title="Mines correctly flagged — starts at 0">
+      <span class="hud-label">FOUND</span>
+      <span class="hud-val" id="found-val">000</span>
+    </div>
+
+    <!-- Total flags placed (mine or safe cell) -->
+    <div class="hud-box" title="Total flags placed (all)">
+      <span class="hud-label">FLAGS</span>
+      <span class="hud-val" id="flags-val">000</span>
+    </div>
+
+    <!-- Face / restart -->
+    <button id="face-btn" title="New game  [R]">🙂</button>
+
+    <!-- Total mines in current difficulty -->
+    <div class="hud-box" title="Total mines on the board">
+      <span class="hud-label">MINES</span>
+      <span class="hud-val" id="mines-val">015</span>
+    </div>
+
+    <!-- Timer -->
+    <div class="hud-box" title="Seconds since first click">
+      <span class="hud-label">TIME</span>
+      <span class="hud-val" id="timer-val">000</span>
+    </div>
+
+  </div>
+
+  <!-- ── Board (cells injected by game.js) ─────────────────── -->
+  <div id="board-wrap">
+    <div id="board"></div>
+  </div>
+
+  <!-- ── Status message ────────────────────────────────────── -->
+  <div id="status-bar">Left-click: reveal  ·  Right-click: flag</div>
+
+  <!-- ── Keyboard hints ────────────────────────────────────── -->
+  <div id="hint-bar">
+    <span><kbd>LMB</kbd> Reveal</span>
+    <span><kbd>RMB</kbd> Flag</span>
+    <span><kbd>R</kbd> Restart</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Difficulty</span>
+  </div>
+
+</div><!-- /game-shell -->
+
+<!-- ── Win / Lose overlay ────────────────────────────────────── -->
+<div id="overlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <span class="modal-icon" id="modal-icon">🎉</span>
+    <div class="modal-title" id="modal-title">Field Cleared!</div>
+    <div class="modal-sub"   id="modal-sub">All safe cells revealed.</div>
+
+    <!-- Stats grid -->
+    <div class="modal-stats">
+      <div class="mstat">
+        <div class="mstat-label">TIME</div>
+        <div class="mstat-val" id="ms-time">0s</div>
+      </div>
+      <div class="mstat">
+        <div class="mstat-label">FOUND</div>
+        <div class="mstat-val" id="ms-found">0/0</div>
+      </div>
+      <div class="mstat">
+        <div class="mstat-label">FLAGS</div>
+        <div class="mstat-val" id="ms-flags">0</div>
+      </div>
+      <div class="mstat">
+        <div class="mstat-label">LEVEL</div>
+        <div class="mstat-val" id="ms-diff">Easy</div>
+      </div>
+    </div>
+
+    <button class="modal-btn" id="modal-btn">Play Again</button>
+  </div>
+</div>
+
+<!--
+  Script load order:
+  1. engine.js  — Emscripten WASM module (optional; fails silently if missing)
+  2. engine-adapter.js — WASM bridge + JS fallback engine
+  3. game.js    — frontend controller
+-->
+<script src="engine.js"
+        onerror="console.log('WASM engine not compiled yet — using JS fallback')">
+</script>
+<script src="engine-adapter.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>

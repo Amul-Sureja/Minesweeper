@@ -1,0 +1,541 @@
+/* ================================================================
+   styles.css  —  Minesweeper Complete UI Design
+   ----------------------------------------------------------------
+   - Pure CSS: all layout, visuals, animations
+   - NO game logic
+   - Fully responsive: auto-fits any screen, NO scrollbars
+   - Cell size calculated dynamically by JS based on viewport
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+/* ── Design tokens ──────────────────────────────────────────────── */
+:root {
+  /* Green felt palette */
+  --felt-darkest: #1e3e18;
+  --felt-dark:    #2a5220;
+  --felt-mid:     #3a6a2e;
+  --felt-base:    #4a7c3a;
+  --felt-light:   #5a8e48;
+
+  /* Cell colours */
+  --cell-hidden:  #c8a86e;
+  --cell-hi:      #e8c890;   /* bevel highlight */
+  --cell-sh:      #8a6030;   /* bevel shadow */
+  --cell-even:    #d4b896;
+  --cell-odd:     #c8a86e;
+
+  /* HUD */
+  --hud-bg:       #1e3e18;
+  --hud-box:      #152e10;
+  --hud-accent:   #a0ff80;
+  --timer-col:    #ffd040;
+  --found-col:    #ff8040;
+  --flags-col:    #60d0ff;   /* total flags = blue */
+  --mines-col:    #ff6060;   /* total mines = red */
+
+  /* Fonts */
+  --font-mono:  'Share Tech Mono', 'Courier New', monospace;
+  --font-disp:  'Orbitron', 'Courier New', monospace;
+
+  /* Animations */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:    cubic-bezier(0.25, 0, 0.1, 1);
+
+  /* Cell dimensions — overridden by JS for each difficulty */
+  --cs: 36px;   /* cell size */
+  --cg: 3px;    /* cell gap */
+  --bv: 3px;    /* bevel width */
+  --fs: 15px;   /* font size inside cell */
+}
+
+/* ── Reset — prevent ALL scrollbars ────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;   /* NO scrollbars, ever */
+  font-family: var(--font-mono);
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background: var(--felt-darkest);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 1px,
+      transparent 1px, transparent 9px
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Game shell ─────────────────────────────────────────────────── */
+#game-shell {
+  background: var(--felt-base);
+  border: 3px solid var(--felt-dark);
+  border-radius: 14px;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  animation: shellIn 0.45s var(--ease-bounce) both;
+  /* Width set dynamically by JS */
+}
+
+@keyframes shellIn {
+  from { transform: scale(0.9) translateY(16px); opacity: 0; }
+  to   { transform: scale(1)   translateY(0);    opacity: 1; }
+}
+
+/* ── Title bar ──────────────────────────────────────────────────── */
+#title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+#game-title {
+  font-family: var(--font-disp);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--hud-accent);
+  text-shadow: 0 0 12px rgba(160,255,128,0.4);
+}
+
+#engine-tag {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: rgba(160,255,128,0.55);
+  background: var(--felt-dark);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Difficulty buttons ─────────────────────────────────────────── */
+#diff-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+
+.diff-btn {
+  flex: 1;
+  background: var(--felt-mid);
+  border: 2px solid var(--felt-dark);
+  border-radius: 5px;
+  color: rgba(200,240,180,0.7);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 5px 2px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.1s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+.diff-btn:hover {
+  background: var(--felt-dark);
+  color: var(--hud-accent);
+  transform: translateY(-1px);
+}
+.diff-btn.active {
+  background: var(--felt-darkest);
+  border-color: var(--hud-accent);
+  color: var(--hud-accent);
+  box-shadow: 0 0 8px rgba(160,255,128,0.3);
+}
+.diff-btn:active { transform: scale(0.96); }
+
+/* ── HUD bar ────────────────────────────────────────────────────── */
+#hud {
+  background: var(--hud-bg);
+  border: 2px solid var(--felt-dark);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.35);
+}
+
+/* HUD info boxes */
+.hud-box {
+  background: var(--hud-box);
+  border: 1.5px solid rgba(0,0,0,0.45);
+  border-radius: 6px;
+  padding: 3px 7px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.hud-label {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: rgba(160,220,140,0.55);
+  white-space: nowrap;
+  margin-bottom: 1px;
+}
+
+.hud-val {
+  font-family: var(--font-disp);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1;
+  text-shadow: 0 0 8px currentColor;
+  white-space: nowrap;
+}
+
+/* Individual box colours */
+#found-val  { color: var(--found-col); }
+#timer-val  { color: var(--timer-col); }
+#flags-val  { color: var(--flags-col); }
+#mines-val  { color: var(--mines-col); }
+
+/* Pulse on change */
+@keyframes hudPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.hud-val.pulse { animation: hudPulse 0.25s ease; }
+
+/* ── Face / Restart button ──────────────────────────────────────── */
+#face-btn {
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  background: #e8c840;
+  border: 3px solid #a89020;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.3),
+    inset 0 -2px 0 rgba(0,0,0,0.2);
+  transition: transform 0.1s, box-shadow 0.1s;
+  flex-shrink: 0;
+}
+#face-btn:hover {
+  transform: scale(1.08);
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.3),
+    inset 0 -2px 0 rgba(0,0,0,0.2),
+    0 0 14px rgba(232,200,64,0.6);
+}
+#face-btn:active { transform: scale(0.93); }
+
+/* ── Board wrapper — clips to exact board size, NO scroll ───────── */
+#board-wrap {
+  overflow: hidden;    /* strictly NO scrollbar */
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+/* ── Board grid ─────────────────────────────────────────────────── */
+#board {
+  display: grid;
+  gap: var(--cg);
+  background: var(--felt-dark);
+  padding: 5px;
+  border-radius: 4px;
+  /* grid-template-columns set by JS */
+}
+
+/* ── Cell base ──────────────────────────────────────────────────── */
+.cell {
+  width:  var(--cs);
+  height: var(--cs);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: filter 0.07s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+/* Hidden — raised bevel */
+.cell.H {
+  background: var(--cell-hidden);
+  border-top:    var(--bv) solid var(--cell-hi);
+  border-left:   var(--bv) solid var(--cell-hi);
+  border-bottom: var(--bv) solid var(--cell-sh);
+  border-right:  var(--bv) solid var(--cell-sh);
+}
+.cell.H:hover { filter: brightness(1.13); }
+.cell.H:active { filter: brightness(0.9); }
+
+/* Revealed */
+.cell.R {
+  cursor: default;
+  border: 1px solid rgba(110,75,35,0.45);
+}
+.cell.R.ev { background: var(--cell-even); }
+.cell.R.od { background: var(--cell-odd);  }
+
+/* Flagged */
+.cell.F {
+  background: var(--cell-hidden);
+  border-top:    var(--bv) solid var(--cell-hi);
+  border-left:   var(--bv) solid var(--cell-hi);
+  border-bottom: var(--bv) solid var(--cell-sh);
+  border-right:  var(--bv) solid var(--cell-sh);
+}
+
+/* Exploded (mine player hit) */
+.cell.EX {
+  background: #ff2020;
+  border: 2px solid #900;
+  cursor: default;
+}
+
+/* Other mines shown after loss */
+.cell.MS {
+  background: var(--cell-odd);
+  border: 1px solid rgba(110,75,35,0.45);
+  cursor: default;
+}
+
+/* Wrong flag */
+.cell.WF {
+  background: #d4a8a0;
+  border: 1px solid rgba(170,70,50,0.4);
+}
+
+/* ── Number colours ──────────────────────────────────────────────── */
+.n1 { color: #1a5fa8; }
+.n2 { color: #1a7a1a; }
+.n3 { color: #cc2222; }
+.n4 { color: #1a1a8a; }
+.n5 { color: #8a1a1a; }
+.n6 { color: #1a8a8a; }
+.n7 { color: #111;    }
+.n8 { color: #555;    }
+
+/* ── ANIMATIONS ─────────────────────────────────────────────────── */
+
+/* Cell reveal pop */
+@keyframes revealPop {
+  0%   { transform: scale(0.25); opacity: 0; }
+  65%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.cell.anim-reveal { animation: revealPop 0.26s var(--ease-bounce) both; }
+
+/* Explosion shake */
+@keyframes explodePop {
+  0%   { transform: scale(1);   filter: brightness(1); }
+  15%  { transform: scale(1.5); filter: brightness(3); }
+  35%  { transform: scale(0.8); filter: brightness(1.6); }
+  55%  { transform: scale(1.2); filter: brightness(2); }
+  75%  { transform: scale(0.9); filter: brightness(1); }
+  100% { transform: scale(1);   filter: brightness(1); }
+}
+.cell.anim-explode { animation: explodePop 0.5s ease both; }
+
+/* Mine reveal after loss */
+@keyframes mineReveal {
+  0%   { transform: scale(0.1) rotate(-40deg); opacity: 0; }
+  70%  { transform: scale(1.12) rotate(5deg); }
+  100% { transform: scale(1) rotate(0);      opacity: 1; }
+}
+.cell.anim-mine { animation: mineReveal 0.32s var(--ease-bounce) both; }
+
+/* Flag placement */
+@keyframes flagBounce {
+  0%   { transform: scale(1);   }
+  30%  { transform: scale(0.65) rotate(-12deg); }
+  65%  { transform: scale(1.22) rotate(6deg); }
+  100% { transform: scale(1)    rotate(0); }
+}
+.cell.anim-flag { animation: flagBounce 0.32s var(--ease-bounce); }
+
+/* Win sweep diagonal wave */
+@keyframes winGlow {
+  0%   { filter: brightness(1)   saturate(1); }
+  40%  { filter: brightness(1.7) saturate(2.2) hue-rotate(45deg); }
+  100% { filter: brightness(1.15) saturate(1.4); }
+}
+.cell.anim-win { animation: winGlow 0.55s ease both; }
+
+/* Ripple on hover click */
+@keyframes rippleOut {
+  0%   { width: 0;    height: 0;    opacity: 0.5; }
+  100% { width: 200%; height: 200%; opacity: 0; }
+}
+.rip {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: rippleOut 0.38s ease-out forwards;
+  pointer-events: none;
+}
+
+/* ── Status bar ─────────────────────────────────────────────────── */
+#status-bar {
+  margin-top: 6px;
+  min-height: 14px;
+  text-align: center;
+  font-size: 9px;
+  color: rgba(200,240,180,0.65);
+  letter-spacing: 0.5px;
+}
+
+/* ── Keyboard hints ─────────────────────────────────────────────── */
+#hint-bar {
+  margin-top: 4px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  font-size: 8px;
+  color: rgba(160,220,140,0.45);
+  flex-wrap: wrap;
+}
+#hint-bar span { display: flex; align-items: center; gap: 3px; }
+#hint-bar kbd {
+  background: var(--felt-dark);
+  border: 1px solid rgba(160,220,140,0.25);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+/* ── OVERLAY (Win / Lose modal) ─────────────────────────────────── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.overlay.show {
+  display: flex;
+  background: rgba(0,0,0,0.74);
+  animation: ovIn 0.22s ease both;
+}
+@keyframes ovIn {
+  from { background: rgba(0,0,0,0); }
+  to   { background: rgba(0,0,0,0.74); }
+}
+
+.modal-box {
+  background: var(--hud-bg);
+  border: 2px solid var(--felt-dark);
+  border-radius: 16px;
+  padding: 26px 34px;
+  text-align: center;
+  max-width: 290px;
+  width: 90%;
+  animation: modalPop 0.32s var(--ease-bounce) both;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.65);
+}
+@keyframes modalPop {
+  0%   { transform: scale(0.55) translateY(24px); opacity: 0; }
+  100% { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
+/* Win / lose themes */
+.overlay-win  .modal-box { border-color: #40e080; box-shadow: 0 0 40px rgba(64,220,128,0.35), 0 24px 64px rgba(0,0,0,0.65); }
+.overlay-lose .modal-box { border-color: #e04040; box-shadow: 0 0 40px rgba(224,64,64,0.35),  0 24px 64px rgba(0,0,0,0.65); }
+
+.modal-icon {
+  font-size: 46px;
+  display: block;
+  margin-bottom: 10px;
+  animation: iconPop 0.55s var(--ease-bounce) 0.12s both;
+}
+@keyframes iconPop {
+  0%   { transform: scale(0) rotate(-25deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.modal-title {
+  font-family: var(--font-disp);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.overlay-win  .modal-title { color: #40e080; }
+.overlay-lose .modal-title { color: #e06060; }
+
+.modal-sub {
+  font-size: 11px;
+  color: rgba(200,240,180,0.7);
+  line-height: 1.7;
+  margin-bottom: 18px;
+}
+
+.modal-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mstat {
+  background: rgba(0,0,0,0.25);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.mstat-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: rgba(200,240,180,0.5);
+  margin-bottom: 2px;
+}
+.mstat-val {
+  font-family: var(--font-disp);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.modal-btn {
+  padding: 9px 24px;
+  border-radius: 7px;
+  border: 2px solid;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.1s;
+}
+.modal-btn:hover  { transform: translateY(-2px); filter: brightness(1.15); }
+.modal-btn:active { transform: scale(0.95); }
+.overlay-win  .modal-btn { background: #1a4828; border-color: #40e080; color: #40e080; }
+.overlay-lose .modal-btn { background: #3a1818; border-color: #e06060; color: #e06060; }
